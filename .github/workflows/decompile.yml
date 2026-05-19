@@ -32,11 +32,11 @@ jobs:
           import ghidra.program.model.listing.*;
           import ghidra.util.task.ConsoleTaskMonitor;
           import java.io.*;
+          import java.nio.file.*;
 
           public class DecompileAll extends GhidraScript {
               public void run() throws Exception {
-                  String[] args = getScriptArgs();
-                  String outPath = args.length > 0 ? args[0] : "/tmp/decompiled.c";
+                  String outPath = new String(Files.readAllBytes(Paths.get("/tmp/ghidra_out_path"))).trim();
                   DecompInterface decomp = new DecompInterface();
                   decomp.openProgram(currentProgram);
                   FunctionManager fm = currentProgram.getFunctionManager();
@@ -51,6 +51,7 @@ jobs:
                   }
                   pw.close();
                   decomp.dispose();
+                  println("Wrote: " + outPath);
               }
           }
           EOF
@@ -60,12 +61,15 @@ jobs:
           mkdir -p output
           for f in input/*.so; do
             name=$(basename "$f" .so)
-            echo "Decompiling $f..."
+            outfile="$(pwd)/output/${name}.c"
+            echo "$outfile" > /tmp/ghidra_out_path
+            echo "Decompiling $f -> $outfile"
             ./ghidra_11.3.2_PUBLIC/support/analyzeHeadless /tmp ghidra_proj \
               -import "$f" \
-              -postScript DecompileAll.java "$(pwd)/output/${name}.c" \
+              -postScript DecompileAll.java \
               -scriptPath . \
-              -deleteProject 2>&1 | tail -5
+              -deleteProject 2>&1 | grep -i "error\|wrote\|REPORT\|decompile"
+            ls -lh "$outfile" 2>/dev/null || echo "WARNING: output file not created"
           done
 
       - name: Commit results
