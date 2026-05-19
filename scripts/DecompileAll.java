@@ -18,10 +18,11 @@ public class DecompileAll extends GhidraScript {
         List<Function> funcs = new ArrayList<>();
         for (Function f : fm.getFunctions(true)) {
             if (f.isExternal() || f.isThunk()) continue;
+            if (f.getSymbol() == null || !f.getSymbol().isExternalEntryPoint()) continue;
             funcs.add(f);
         }
         int total = funcs.size();
-        println("Decompiling " + total + " functions...");
+        println("Decompiling " + total + " exported functions...");
 
         int threads = Math.max(2, Runtime.getRuntime().availableProcessors());
         ExecutorService pool = Executors.newFixedThreadPool(threads);
