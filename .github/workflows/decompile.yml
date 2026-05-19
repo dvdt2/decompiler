@@ -34,10 +34,11 @@ jobs:
 
           public class DecompileAll extends GhidraScript {
               public void run() throws Exception {
+                  String[] args = getScriptArgs();
+                  String outPath = args.length > 0 ? args[0] : "/tmp/decompiled.c";
                   DecompInterface decomp = new DecompInterface();
                   decomp.openProgram(currentProgram);
                   FunctionManager fm = currentProgram.getFunctionManager();
-                  String outPath = System.getProperty("ghidra.output", "/tmp/decompiled.c");
                   PrintWriter pw = new PrintWriter(new FileWriter(outPath));
                   for (Function f : fm.getFunctions(true)) {
                       DecompileResults res = decomp.decompileFunction(f, 60, new ConsoleTaskMonitor());
@@ -61,10 +62,9 @@ jobs:
             echo "Decompiling $f..."
             ./ghidra_11.3.2_PUBLIC/support/analyzeHeadless /tmp ghidra_proj \
               -import "$f" \
-              -postScript DecompileAll.java \
+              -postScript DecompileAll.java "$(pwd)/output/${name}.c" \
               -scriptPath . \
-              -deleteProject \
-              -Dghidra.output="output/${name}.c" 2>&1 | tail -5
+              -deleteProject 2>&1 | tail -5
           done
 
       - name: Commit results
