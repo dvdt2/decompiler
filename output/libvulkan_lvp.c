@@ -2756,7 +2756,7 @@ LAB_00cf3580:
       }
       goto LAB_00cf3218;
     }
-    pcVar5 = (char *)ExtInstDesc::name((ExtInstDesc *)local_68);
+    pcVar5 = (char *)ExtInstDesc::name();
     break;
   case 8:
     local_68 = (OperandDesc *)0x0;
@@ -12277,15 +12277,17 @@ undefined1  [16] __thiscall spvtools::ExtInstDesc::operands(ExtInstDesc *this)
 
 // === name @ 00d03c94 ===
 
+/* WARNING: Unknown calling convention -- yet parameter storage is locked */
 /* spvtools::ExtInstDesc::name() const */
 
-undefined1  [16] __thiscall spvtools::ExtInstDesc::name(ExtInstDesc *this)
+undefined1  [16] spvtools::ExtInstDesc::name(void)
 
 {
+  long in_x0;
   undefined1 auVar1 [16];
   
-  auVar1._8_4_ = *(undefined4 *)(this + 0x10);
-  auVar1._0_8_ = "SPV_ALTERA_arbitrary_precision_fixed_point" + *(uint *)(this + 0xc);
+  auVar1._8_4_ = *(undefined4 *)(in_x0 + 0x10);
+  auVar1._0_8_ = "SPV_ALTERA_arbitrary_precision_fixed_point" + *(uint *)(in_x0 + 0xc);
   auVar1._12_4_ = 0;
   return auVar1;
 }
