@@ -20,56 +20,44 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Cache Ghidra
+        id: cache-ghidra
+        uses: actions/cache@v4
+        with:
+          path: ghidra_11.3.2_PUBLIC
+          key: ghidra-11.3.2
+
       - name: Download Ghidra
+        if: steps.cache-ghidra.outputs.cache-hit != 'true'
         run: |
           wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.3.2_build/ghidra_11.3.2_PUBLIC_20250415.zip
           unzip -q ghidra_11.3.2_PUBLIC_20250415.zip
-
-      - name: Write decompile script
-        run: |
-          cat > DecompileAll.java << 'EOF'
-          import ghidra.app.decompiler.*;
-          import ghidra.program.model.listing.*;
-          import ghidra.util.task.ConsoleTaskMonitor;
-          import java.io.*;
-          import java.nio.file.*;
-
-          public class DecompileAll extends GhidraScript {
-              public void run() throws Exception {
-                  String outPath = new String(Files.readAllBytes(Paths.get("/tmp/ghidra_out_path"))).trim();
-                  DecompInterface decomp = new DecompInterface();
-                  decomp.openProgram(currentProgram);
-                  FunctionManager fm = currentProgram.getFunctionManager();
-                  PrintWriter pw = new PrintWriter(new FileWriter(outPath));
-                  for (Function f : fm.getFunctions(true)) {
-                      DecompileResults res = decomp.decompileFunction(f, 60, new ConsoleTaskMonitor());
-                      if (res != null && res.decompileCompleted()) {
-                          pw.println("// " + f.getName());
-                          pw.println(res.getDecompiledFunction().getC());
-                          pw.println();
-                      }
-                  }
-                  pw.close();
-                  decomp.dispose();
-                  println("Wrote: " + outPath);
-              }
-          }
-          EOF
+          rm ghidra_11.3.2_PUBLIC_20250415.zip
 
       - name: Decompile all .so files
         run: |
           mkdir -p output
+          SCRIPT_DIR="$(pwd)/scripts"
+          shopt -s nullglob
           for f in input/*.so; do
             name=$(basename "$f" .so)
             outfile="$(pwd)/output/${name}.c"
             echo "$outfile" > /tmp/ghidra_out_path
-            echo "Decompiling $f -> $outfile"
-            ./ghidra_11.3.2_PUBLIC/support/analyzeHeadless /tmp ghidra_proj \
+            echo "::group::Decompiling $f"
+            ./ghidra_11.3.2_PUBLIC/support/analyzeHeadless /tmp "ghidra_proj_${name}" \
               -import "$f" \
+              -scriptPath "$SCRIPT_DIR" \
               -postScript DecompileAll.java \
-              -scriptPath . \
-              -deleteProject 2>&1 | grep -i "error\|wrote\|REPORT\|decompile"
-            ls -lh "$outfile" 2>/dev/null || echo "WARNING: output file not created"
+              -deleteProject \
+              -analysisTimeoutPerFile 600
+            echo "::endgroup::"
+            if [ -f "$outfile" ]; then
+              lines=$(wc -l < "$outfile")
+              echo "::notice::Wrote $lines lines to $outfile"
+            else
+              echo "::error::Output file not created for $f"
+              exit 1
+            fi
           done
 
       - name: Commit results
@@ -77,5 +65,9 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add output/
-          git diff --staged --quiet || git commit -m "decompiled output"
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "decompile: $(ls output/ | tr '\n' ' ')"
+            git push
+          fi
