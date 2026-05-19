@@ -37,6 +37,8 @@ jobs:
           rm ghidra_11.3.2_PUBLIC_20250415.zip
 
       - name: Decompile all .so files
+        env:
+          JAVA_TOOL_OPTIONS: "-Xmx12g"
         run: |
           mkdir -p output
           SCRIPT_DIR="$(pwd)/scripts"
@@ -49,6 +51,7 @@ jobs:
             ./ghidra_11.3.2_PUBLIC/support/analyzeHeadless /tmp "ghidra_proj_${name}" \
               -import "$f" \
               -scriptPath "$SCRIPT_DIR" \
+              -preScript DisableAnalyzers.java \
               -postScript DecompileAll.java \
               -deleteProject \
               -analysisTimeoutPerFile 600
