@@ -67,7 +67,16 @@ jobs:
           git add output/
           if git diff --staged --quiet; then
             echo "No changes to commit"
-          else
-            git commit -m "decompile: $(ls output/ | tr '\n' ' ')"
-            git push
+            exit 0
           fi
+          git commit -m "decompile: $(ls output/ | tr '\n' ' ')"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin master && git push && exit 0
+            echo "Push attempt $i failed, retrying..."
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "::error::Failed to push after 5 attempts"
+          exit 1
+    concurrency:
+      group: decompile-push
+      cancel-in-progress: false
