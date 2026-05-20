@@ -18,7 +18,6 @@ public class DecompileAll extends GhidraScript {
         List<Function> funcs = new ArrayList<>();
         for (Function f : fm.getFunctions(true)) {
             if (f.isExternal() || f.isThunk()) continue;
-            if (f.getSymbol() == null || !f.getSymbol().isExternalEntryPoint()) continue;
             funcs.add(f);
         }
         int total = funcs.size();
