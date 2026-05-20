@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'input/**.so'
+      - 'input/**'
 
 jobs:
   decompile:
@@ -40,11 +40,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/ghidra_projects
-          key: ghidra-projects-${{ hashFiles('input/*.so') }}
+          key: ghidra-projects-${{ hashFiles('input/**') }}
           restore-keys: |
             ghidra-projects-
 
-      - name: Decompile all .so files
+      - name: Decompile all files
         env:
           JAVA_TOOL_OPTIONS: "-Xmx12g"
         run: |
@@ -53,8 +53,10 @@ jobs:
           mkdir -p "$PROJ_DIR"
           SCRIPT_DIR="$(pwd)/scripts"
           shopt -s nullglob
-          for f in input/*.so; do
-            name=$(basename "$f" .so)
+          for f in input/*; do
+            [ -f "$f" ] || continue
+            fname=$(basename "$f")
+            name="${fname%.*}"
             outfile="$(pwd)/output/${name}.c"
             echo "$outfile" > /tmp/ghidra_out_path
             expected=$(sha256sum "$f" | cut -d' ' -f1)
@@ -62,7 +64,7 @@ jobs:
             if [ -f "$PROJ_DIR/proj_${name}.gpr" ] && [ "$(cat "$sidecar" 2>/dev/null)" = "$expected" ]; then
               echo "::group::Decompiling $f (cached project)"
               ./ghidra_11.3.2_PUBLIC/support/analyzeHeadless "$PROJ_DIR" "proj_${name}" \
-                -process "$(basename "$f")" \
+                -process "$fname" \
                 -noanalysis \
                 -scriptPath "$SCRIPT_DIR" \
                 -postScript DecompileAll.java
